@@ -126,8 +126,10 @@ and 18 UTC runs. AIFS publishes 0-360 h every 6 hours. Probabilities
 their end.</p>
 <p>The <strong>-b</strong> flag (bundle) downloads every available step
 of the run, up to 15 days (360 h), in place of <strong>steps</strong>.
-Combined with several datasets, the bundles are downloaded one after the
-other.</p>
+Without <strong>date</strong> and <strong>time</strong>, it takes the
+latest run that reaches 15 days (00 or 12 UTC for the IFS, as the 06 and
+18 UTC runs stop at 144 h). Combined with several datasets, the bundles
+are downloaded one after the other.</p>
 <h3>Parameters, levels and
 members</h3>
 <p><strong>parameters</strong> takes ECMWF short names (2t, tp, 10u,
@@ -169,9 +171,9 @@ the amount of each interval between two consecutive downloaded steps.
 Packing noise makes small negative differences, which are clipped to
 zero for fields that cannot be negative (precipitation, snowfall,
 runoff, downward radiation);</li>
-<li><em>mx2t3</em>, <em>mn2t3</em> (and the 6 hour versions) get their 3
-or 6 hour window, and <em>10fg</em> the interval since the previous
-published step;</li>
+<li><em>mx2t3</em>, <em>mn2t3</em>, <em>10fg3</em> (and the 6 hour
+versions) get their 3 or 6 hour window, and <em>10fg</em> the interval
+since the previous published step;</li>
 <li>probabilities get their interval.</li>
 </ul>
 <p>The STRDS semantic type is <em>sum</em> for accumulated fields,

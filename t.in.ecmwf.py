@@ -289,10 +289,11 @@ PARAMETERS = {
 # the IFS uses the ECMWF local codes in m.
 AIFS_UNITS = {"tp": "kg m-2", "cp": "kg m-2", "sf": "kg m-2"}
 
-# Extremes over the interval since the previous post-processing step.
+# Extremes over the interval since the previous post-processing step
+# (10fg3 and 10fg6 are fixed windows, see WINDOW_RE).
 SINCE_PREVIOUS = {"10fg": "max"}
 # Extremes over a fixed window, the window length in hours in the name.
-WINDOW_RE = re.compile(r"^m([xn])2t(\d+)$")
+WINDOW_RE = re.compile(r"^(mx2t|mn2t|10fg)(\d+)$")
 
 HTTP_RETRIES = 4
 
@@ -405,17 +406,20 @@ def run_is_published(root, ds, resol, run):
     return http_exists(file_url(root, run, ds, resol, final, part, "index"))
 
 
-def latest_run(root, ds, resol, days_back=5):
+def latest_run(root, ds, resol, full_range=False, days_back=5):
+    """The newest published run; with full_range, the newest one whose
+    steps reach BUNDLE_HOURS (00 and 12 UTC for the IFS)."""
     now = dt.datetime.now(dt.timezone.utc)
     cand = now.replace(hour=now.hour - now.hour % 6, minute=0, second=0, microsecond=0)
     for _ in range(days_back * 4):
-        if run_is_published(root, ds, resol, cand):
+        reaches = schedule_steps(ds["schedule"], cand.hour)[-1] >= BUNDLE_HOURS
+        if (reaches or not full_range) and run_is_published(root, ds, resol, cand):
             return cand
         cand -= dt.timedelta(hours=6)
     return None
 
 
-def choose_run_and_resolution(root, name, ds, resolution, run):
+def choose_run_and_resolution(root, name, ds, resolution, run, full_range=False):
     """Returns (run, resol) for one dataset. With resolution=best the 0.1
     degree grid is taken when it already carries the run that 0.25 degree
     offers, since 0.1 degree is published 2 hours later."""
@@ -450,7 +454,7 @@ def choose_run_and_resolution(root, name, ds, resolution, run):
             )
         )
 
-    found = {r: latest_run(root, ds, r) for r in candidates}
+    found = {r: latest_run(root, ds, r, full_range) for r in candidates}
     if resolution == "best" and len(candidates) == 2:
         fine, coarse = found["0p1"], found["0p25"]
         if fine is not None and (coarse is None or fine >= coarse):
@@ -578,7 +582,7 @@ def semantic_type(param):
         return SINCE_PREVIOUS[param]
     m = WINDOW_RE.match(param)
     if m:
-        return "max" if m.group(1) == "x" else "min"
+        return "min" if m.group(1) == "mn2t" else "max"
     return "mean"
 
 
@@ -1081,8 +1085,9 @@ def main():
     found = set()
     for i, name in enumerate(names):
         ds = DATASETS[name]
+        # A bundle takes the latest run that reaches 15 days.
         run_ds, resol = choose_run_and_resolution(
-            root, name, ds, options["resolution"], run
+            root, name, ds, options["resolution"], run, full_range=flags["b"]
         )
         gs.message(
             "Dataset {}/{}: <{}>, {} degree, run {:%Y-%m-%d %H} UTC".format(

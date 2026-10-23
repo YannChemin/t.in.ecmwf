@@ -71,7 +71,9 @@ come as intervals (such as 0-24 h) in two files (240 h and 360 h), and
 **steps** selects the intervals by their end.
 
 The **-b** flag (bundle) downloads every available step of the run, up
-to 15 days (360 h), in place of **steps**. Combined with several
+to 15 days (360 h), in place of **steps**. Without **date** and
+**time**, it takes the latest run that reaches 15 days (00 or 12 UTC
+for the IFS, as the 06 and 18 UTC runs stop at 144 h). Combined with several
 datasets, the bundles are downloaded one after the other.
 
 ### Parameters, levels and members
@@ -113,8 +115,9 @@ meaning of each field:
   noise makes small negative differences, which are clipped to zero
   for fields that cannot be negative (precipitation, snowfall, runoff,
   downward radiation);
-- *mx2t3*, *mn2t3* (and the 6 hour versions) get their 3 or 6 hour
-  window, and *10fg* the interval since the previous published step;
+- *mx2t3*, *mn2t3*, *10fg3* (and the 6 hour versions) get their 3 or
+  6 hour window, and *10fg* the interval since the previous published
+  step;
 - probabilities get their interval.
 
 The STRDS semantic type is *sum* for accumulated fields, *max* or *min*

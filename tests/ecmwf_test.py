@@ -43,8 +43,11 @@ def test_aifs_has_no_0p1(tin):
 def test_schedules(tin):
     long_run = tin.schedule_steps("ifs", 0)
     assert long_run[:3] == [0, 3, 6]
-    assert 141 in long_run and 147 not in long_run and 150 in long_run
-    assert long_run[-1] == 360 and len(long_run) == 85
+    assert 141 in long_run
+    assert 147 not in long_run
+    assert 150 in long_run
+    assert long_run[-1] == 360
+    assert len(long_run) == 85
     assert tin.schedule_steps("ifs", 6)[-1] == 144
     assert tin.schedule_steps("aifs", 18) == list(range(0, 361, 6))
     assert tin.schedule_steps("ep", 12) == [240, 360]
@@ -53,7 +56,8 @@ def test_schedules(tin):
 def test_ranges(tin):
     ranges = tin.parse_ranges(["0-72", " 96"], "step")
     assert ranges == [(0, 72), (96, 96)]
-    assert tin.in_ranges(72, ranges) and tin.in_ranges(96, ranges)
+    assert tin.in_ranges(72, ranges)
+    assert tin.in_ranges(96, ranges)
     assert not tin.in_ranges(75, ranges)
     assert tin.in_ranges(5, None)
 
@@ -107,6 +111,7 @@ def test_spans_windows(tin):
     all_steps = [0, 3, 6, 144, 150]
     assert tin.time_spans("mx2t3", [0, 3], all_steps, False) == [(3, 0, 3, None)]
     assert tin.time_spans("mn2t6", [150], all_steps, False) == [(150, 144, 150, None)]
+    assert tin.time_spans("10fg3", [3], all_steps, False) == [(3, 0, 3, None)]
     assert tin.time_spans("10fg", [0, 150], all_steps, False) == [(150, 144, 150, None)]
 
 
@@ -122,6 +127,7 @@ def test_semantic_type(tin):
     assert tin.semantic_type("mx2t3") == "max"
     assert tin.semantic_type("mn2t6") == "min"
     assert tin.semantic_type("10fg") == "max"
+    assert tin.semantic_type("10fg3") == "max"
     assert tin.semantic_type("2t") == "mean"
 
 
@@ -131,8 +137,10 @@ def test_crop_window(tin):
     assert (xoff, yoff) == (2599, 589)
     west = gt[0] + xoff * gt[1]
     north = gt[3] + yoff * gt[5]
-    assert west < 80 and north > 31
-    assert west + cols * gt[1] > 89 and north + rows * gt[5] < 26
+    assert west < 80
+    assert north > 31
+    assert west + cols * gt[1] > 89
+    assert north + rows * gt[5] < 26
     # Clipped at the grid edges.
     assert tin.crop_window(gt, 3600, 1801, [90, -180, -90, 180]) == (0, 0, 3600, 1801)
 
