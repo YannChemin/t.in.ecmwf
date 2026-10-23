@@ -155,8 +155,9 @@ semantic label <code>mNN</code>, so that
 <code>ecmwf_ifs_enfo_2t.m07</code> selects member 7 in the temporal
 modules.</p>
 <p>Values are in the native ECMWF units (K, m, Pa, J m-2, ...), and the
-STRDS description gives the unit. The time stamps follow the meaning of
-each field:</p>
+STRDS description gives the unit. Precipitation and snowfall are in m of
+water in the IFS datasets, but in kg m-2 (mm) in the AIFS datasets. The
+time stamps follow the meaning of each field:</p>
 <ul>
 <li>instantaneous fields (2t, msl, swh, ...) get a point in time at the
 valid time;</li>
@@ -189,6 +190,10 @@ the end.</p>
 no other extra Python package. Downloads run in parallel within a
 dataset (<strong>nprocs</strong>, default 4). Please keep this number
 small: the ECMWF server is shared.</p>
+<p>In a project that is not in WGS84, <em>r.import</em> reprojects the
+fields with the <strong>resample</strong> method, at a resolution it
+estimates from the grid (about 25 km or 10 km), not at the resolution of
+the region.</p>
 <p>An area crossing the antimeridian is not supported. Import the east
 and west parts separately.</p>
 <p>ECMWF open data is distributed under the CC-BY-4.0 licence. Credit

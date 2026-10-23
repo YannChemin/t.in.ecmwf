@@ -285,6 +285,10 @@ PARAMETERS = {
     "zos": ("Sea surface height", "m"),
 }
 
+# AIFS encodes precipitation with the WMO codes, in kg m-2 (mm), where
+# the IFS uses the ECMWF local codes in m.
+AIFS_UNITS = {"tp": "kg m-2", "cp": "kg m-2", "sf": "kg m-2"}
+
 # Extremes over the interval since the previous post-processing step.
 SINCE_PREVIOUS = {"10fg": "max"}
 # Extremes over a fixed window, the window length in hours in the name.
@@ -556,6 +560,17 @@ def strds_name(prefix, dataset, param, level):
     return name
 
 
+def parameter_info(param, model, comment, unit):
+    """(name, unit) of a parameter, from the table when it is known,
+    else from the GRIB metadata."""
+    if param not in PARAMETERS:
+        return comment or param, unit
+    name, unit = PARAMETERS[param]
+    if model.startswith("aifs"):
+        unit = AIFS_UNITS.get(param, unit)
+    return name, unit
+
+
 def semantic_type(param):
     if param in ACCUMULATED:
         return "sum"
@@ -692,7 +707,7 @@ def read_field(path, area):
     return arr, crop_gt, unit, comment
 
 
-def import_series(param, series, area, tmp_dir, tmp_name, resample, overwrite):
+def import_series(param, label, series, area, tmp_dir, tmp_name, resample, overwrite):
     """Writes the fields of one series into a multiband GeoTIFF, imports
     it with r.import and renames the bands to their final names.
     `series` is a list of (final_name, path, previous_path). Returns the
@@ -739,7 +754,12 @@ def import_series(param, series, area, tmp_dir, tmp_name, resample, overwrite):
     dst.FlushCache()
     dst = None
 
-    TMP_RASTERS.extend("{}.{}".format(tmp_name, i + 1) for i in range(len(series)))
+    # r.import adds a .N band suffix only to multiband files.
+    if len(series) == 1:
+        imported = [tmp_name]
+    else:
+        imported = ["{}.{}".format(tmp_name, i + 1) for i in range(len(series))]
+    TMP_RASTERS.extend(imported)
     gs.run_command(
         "r.import",
         input=tif,
@@ -750,10 +770,15 @@ def import_series(param, series, area, tmp_dir, tmp_name, resample, overwrite):
         overwrite=True,
     )
     os.remove(tif)
-    for i, (name, _, _) in enumerate(series):
-        tmp = "{}.{}".format(tmp_name, i + 1)
+    for tmp, (name, _, _) in zip(imported, series):
+        if not gs.find_file(tmp, element="cell")["name"]:
+            gs.fatal("r.import did not create <{}>".format(tmp))
         gs.run_command("g.rename", raster=(tmp, name), quiet=True, overwrite=overwrite)
         TMP_RASTERS.remove(tmp)
+        if label:
+            # Set on the map: t.register drops a label given as the third
+            # column of a point-in-time line (GRASS 8.6.0dev).
+            gs.run_command("r.support", map=name, semantic_label=label)
         gs.raster_history(name)
     return unit, comment
 
@@ -900,6 +925,13 @@ def process_dataset(
             done += 1
             gs.percent(done, len(jobs), 1)
 
+    # With --overwrite, the old datasets and their maps go before the
+    # import, which reuses the map names.
+    for strds in set(strds_of.values()):
+        sp = tgis.dataset_factory("strds", "{}@{}".format(strds, mapset))
+        if sp.is_in_db():
+            gs.run_command("t.remove", flags="df", inputs=strds, quiet=True)
+
     path_of = {id(e): p for _, e, p in jobs}
     run_naive = run.replace(tzinfo=None)
     gs.message("Importing {} series of {}...".format(len(groups), name))
@@ -932,13 +964,12 @@ def process_dataset(
                 row.append(
                     "{:%Y-%m-%d %H:%M:%S}".format(run_naive + dt.timedelta(hours=end))
                 )
-            if label:
-                row.append(label)
             rows.append("|".join(row))
         if not series:
             continue
         unit, comment = import_series(
             param,
+            label,
             series,
             area,
             TMP_DIR or cache_dir,
@@ -947,9 +978,6 @@ def process_dataset(
             overwrite,
         )
         if strds not in created:
-            sp = tgis.dataset_factory("strds", "{}@{}".format(strds, mapset))
-            if sp.is_in_db():
-                gs.run_command("t.remove", flags="df", inputs=strds, quiet=True)
             mode = (
                 "de-accumulated per step" if flags["d"] and param in ACCUMULATED else ""
             )
@@ -968,7 +996,7 @@ def process_dataset(
                     run,
                 ),
                 description="{} [{}]{}{}".format(
-                    *PARAMETERS.get(param, (comment or param, unit)),
+                    *parameter_info(param, ds["model"], comment, unit),
                     ", level " + level if level else "",
                     ", " + mode if mode else "",
                 ),

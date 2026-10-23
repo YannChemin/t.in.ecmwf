@@ -99,7 +99,8 @@ the same STRDS and carry the semantic label `mNN`, so that
 `ecmwf_ifs_enfo_2t.m07` selects member 7 in the temporal modules.
 
 Values are in the native ECMWF units (K, m, Pa, J m-2, ...), and the
-STRDS description gives the unit. The time stamps follow the
+STRDS description gives the unit. Precipitation and snowfall are in m
+of water in the IFS datasets, but in kg m-2 (mm) in the AIFS datasets. The time stamps follow the
 meaning of each field:
 
 - instantaneous fields (2t, msl, swh, ...) get a point in time at the
@@ -134,6 +135,10 @@ The module needs the GDAL Python bindings with the GRIB driver, and no
 other extra Python package. Downloads run in parallel within a dataset
 (**nprocs**, default 4). Please keep this number small: the ECMWF
 server is shared.
+
+In a project that is not in WGS84, *r.import* reprojects the fields
+with the **resample** method, at a resolution it estimates from the
+grid (about 25 km or 10 km), not at the resolution of the region.
 
 An area crossing the antimeridian is not supported. Import the east
 and west parts separately.

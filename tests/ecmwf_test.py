@@ -153,3 +153,12 @@ def test_cache_path(tin):
     }
     path = tin.cache_path("/c", "ifs_enfo", "0p1", RUN, e)
     assert path == "/c/0p1/2026102200/ifs_enfo/0_24/t_pl_850_m07.grib2"
+
+
+def test_parameter_units(tin):
+    assert tin.parameter_info("tp", "ifs", "", "-") == ("Total precipitation", "m")
+    assert tin.parameter_info("tp", "aifs-single", "", "") == (
+        "Total precipitation",
+        "kg m-2",
+    )
+    assert tin.parameter_info("tpg10", "ifs", "Prob [%]", "%") == ("Prob [%]", "%")
