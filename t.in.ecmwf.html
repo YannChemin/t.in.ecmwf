@@ -1,0 +1,229 @@
+<h2>DESCRIPTION</h2>
+<p><em>t.in.ecmwf</em> downloads real-time forecasts from the <a
+href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF open
+data</a> service and imports each requested parameter as a space-time
+raster dataset (STRDS). It covers the IFS forecasts at 0.25 degree and,
+since 20 October 2026, at 0.1 degree, and the AIFS (machine learning)
+forecasts at 0.25 degree.</p>
+<p>Only the requested fields are transferred. Each forecast file comes
+with a JSON index giving the byte offset and length of every GRIB
+message, and the module fetches just those messages with HTTP range
+requests. They are cropped to the area (by default the current region,
+plus one grid cell on each side), imported with <em>r.import</em>, and
+registered with their valid time.</p>
+<h3>Datasets</h3>
+<p>The <strong>datasets</strong> option takes one or more of:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Dataset</th>
+<th>Model</th>
+<th>Stream/type</th>
+<th>Content</th>
+<th>0.1 degree</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ifs_oper</td>
+<td>IFS</td>
+<td>oper/fc</td>
+<td>Control forecast (formerly HRES)</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td>ifs_enfo</td>
+<td>IFS</td>
+<td>enfo/ef</td>
+<td>Ensemble, 50 perturbed members</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td>ifs_enfo_ep</td>
+<td>IFS</td>
+<td>enfo/ep</td>
+<td>Ensemble probabilities</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td>ifs_wave</td>
+<td>IFS</td>
+<td>wave/fc</td>
+<td>Wave control forecast</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td>ifs_waef</td>
+<td>IFS</td>
+<td>waef/ef</td>
+<td>Wave ensemble, 50 members</td>
+<td>yes</td>
+</tr>
+<tr class="even">
+<td>ifs_waef_ep</td>
+<td>IFS</td>
+<td>waef/ep</td>
+<td>Wave ensemble probabilities</td>
+<td>yes</td>
+</tr>
+<tr class="odd">
+<td>aifs_single</td>
+<td>AIFS Single</td>
+<td>oper/fc</td>
+<td>ML deterministic forecast</td>
+<td>no</td>
+</tr>
+<tr class="even">
+<td>aifs_ens</td>
+<td>AIFS ENS</td>
+<td>enfo/pf</td>
+<td>ML ensemble perturbed members</td>
+<td>no</td>
+</tr>
+<tr class="odd">
+<td>aifs_ens_cf</td>
+<td>AIFS ENS</td>
+<td>enfo/cf</td>
+<td>ML ensemble control member</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>With several datasets, they are queued: each dataset is downloaded
+and imported completely before the next one starts. A parameter missing
+from one dataset (for example <em>swh</em> in <em>ifs_oper</em>, or
+<em>tp</em> in <em>ifs_wave</em>) is skipped there with a warning. The
+module fails when a dataset offers none of the parameters, or when a
+parameter is in none of the datasets.</p>
+<h3>Resolution</h3>
+<p><strong>resolution=0.25</strong> (the default) uses the 0.25 degree
+grid, available for every dataset. <strong>resolution=0.1</strong> uses
+the 0.1 degree grid (IFS only). The module fails for an AIFS dataset at
+that resolution. <strong>resolution=best</strong> takes 0.1 degree when
+the run is already published at 0.1 degree, and 0.25 degree otherwise.
+ECMWF publishes the 0.1 degree files 2 hours after the 0.25 degree ones,
+so right after a new run the 0.25 degree grid of the newest run is
+preferred to the 0.1 degree grid of the previous run. AIFS datasets
+always use 0.25 degree under <em>best</em>.</p>
+<p>At 0.1 degree, ECMWF splits each step into a surface file
+(<code>-sfc</code>) and a pressure-level file (<code>-pl</code>). The
+module reads the surface index first and the pressure-level index only
+for parameters not found there.</p>
+<h3>Run and steps</h3>
+<p>By default the latest complete run is used. A run counts as complete
+when its last step is on the server. <strong>date</strong> and
+<strong>time</strong> select a given run, and both must be given. The
+ECMWF server keeps about four days of runs. The mirrors
+(<strong>source=aws</strong> or <strong>source=google</strong>) keep
+more.</p>
+<p><strong>steps</strong> selects forecast steps in hours, as numbers
+and ranges (<code>0-72,96</code>). Steps that a run does not publish are
+ignored. The IFS publishes 0-144 h every 3 hours and 150-360 h every 6
+hours for the 00 and 12 UTC runs, and 0-144 h every 3 hours for the 06
+and 18 UTC runs. AIFS publishes 0-360 h every 6 hours. Probabilities
+(<em>_ep</em> datasets) come as intervals (such as 0-24 h) in two files
+(240 h and 360 h), and <strong>steps</strong> selects the intervals by
+their end.</p>
+<p>The <strong>-b</strong> flag (bundle) downloads every available step
+of the run, up to 15 days (360 h), in place of <strong>steps</strong>.
+Combined with several datasets, the bundles are downloaded one after the
+other.</p>
+<h3>Parameters, levels and
+members</h3>
+<p><strong>parameters</strong> takes ECMWF short names (2t, tp, 10u,
+10v, msl, ro, swh, ...). The <strong>-l</strong> flag prints, for each
+dataset, the chosen resolution and run, the published steps, and every
+parameter with its level type, levels and size per step, then exits
+without downloading.</p>
+<p>For multi-level parameters (pressure levels, soil layers),
+<strong>levels</strong> restricts the levels; by default all levels of
+the parameter are kept. For ensembles, <strong>members</strong>
+restricts the members (<code>1-10,25</code>); by default all members are
+kept. An ensemble at 0.1 degree is large (about 1.7 MB per member,
+parameter and step before cropping), and the module reports the download
+size before starting.</p>
+<h3>Output</h3>
+<p>One STRDS is created per parameter and level, named
+<code>&lt;output_prefix&gt;_&lt;dataset&gt;_&lt;parameter&gt;[_&lt;level&gt;]</code>,
+for example <em>ecmwf_ifs_oper_2t</em> or <em>ecmwf_ifs_oper_t_850</em>.
+Maps are named
+<code>&lt;strds&gt;_&lt;run YYYYMMDDHH&gt;_&lt;step&gt;</code> for
+points in time and
+<code>&lt;strds&gt;_&lt;run&gt;_&lt;start&gt;_&lt;end&gt;</code> for
+intervals. Ensemble members go into the same STRDS and carry the
+semantic label <code>mNN</code>, so that
+<code>ecmwf_ifs_enfo_2t.m07</code> selects member 7 in the temporal
+modules.</p>
+<p>Values are in the native ECMWF units (K, m, Pa, J m-2, ...), and the
+STRDS description gives the unit. The time stamps follow the meaning of
+each field:</p>
+<ul>
+<li>instantaneous fields (2t, msl, swh, ...) get a point in time at the
+valid time;</li>
+<li>fields accumulated since the start of the forecast (tp, cp, sf, ro,
+ssrd, ssr, str, strd, ttr, ewss, nsss, ...) get the interval from the
+run time to the valid time. Step 0 is skipped, as it is zero;</li>
+<li>with <strong>-d</strong>, accumulated fields are de-accumulated into
+the amount of each interval between two consecutive downloaded steps.
+Packing noise makes small negative differences, which are clipped to
+zero for fields that cannot be negative (precipitation, snowfall,
+runoff, downward radiation);</li>
+<li><em>mx2t3</em>, <em>mn2t3</em> (and the 6 hour versions) get their 3
+or 6 hour window, and <em>10fg</em> the interval since the previous
+published step;</li>
+<li>probabilities get their interval.</li>
+</ul>
+<p>The STRDS semantic type is <em>sum</em> for accumulated fields,
+<em>max</em> or <em>min</em> for extremes, and <em>mean</em> otherwise.
+An existing STRDS is replaced, with its maps, only with
+<strong>--overwrite</strong>.</p>
+<h3>Cache</h3>
+<p>Downloaded GRIB messages are stored under <strong>cache_dir</strong>,
+one file per message, by resolution, run, dataset and step. A later call
+with the same <strong>cache_dir</strong> reuses them, for example to
+import another area or to add de-accumulation. Without
+<strong>cache_dir</strong>, a temporary directory is used and removed at
+the end.</p>
+<h2>NOTES</h2>
+<p>The module needs the GDAL Python bindings with the GRIB driver, and
+no other extra Python package. Downloads run in parallel within a
+dataset (<strong>nprocs</strong>, default 4). Please keep this number
+small: the ECMWF server is shared.</p>
+<p>An area crossing the antimeridian is not supported. Import the east
+and west parts separately.</p>
+<p>ECMWF open data is distributed under the CC-BY-4.0 licence. Credit
+ECMWF in products derived from it.</p>
+<h2>EXAMPLES</h2>
+<p>List what the 0.1 degree control forecast offers:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">t.in.ecmwf</span> <span class="at">-l</span> datasets=ifs_oper resolution=0.1</span></code></pre></div>
+<p>Download the 15-day forecast of temperature, precipitation and runoff
+for Nepal and Bangladesh at the best resolution, with precipitation and
+runoff per step, for the control forecast and then the AIFS:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">g.region</span> n=31 s=20 w=80 e=93 res=0.1</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">t.in.ecmwf</span> <span class="at">-b</span> <span class="at">-d</span> datasets=ifs_oper,aifs_single resolution=best <span class="dt">\</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    parameters=2t,tp,ro cache_dir=<span class="va">$HOME</span>/RSDATA/ecmwf_cache</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">t.rast.list</span> ecmwf_ifs_oper_tp columns=name,start_time,end_time</span></code></pre></div>
+<p>Ensemble members 1 to 10 of the 2 m temperature for the next 3 days,
+and the probability of more than 10 mm and 25 mm of rain in 24
+hours:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">t.in.ecmwf</span> datasets=ifs_enfo,ifs_enfo_ep resolution=0.1 <span class="dt">\</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    parameters=2t,tpg10,tpg25 members=1-10 steps=0-72</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">t.rast.list</span> ecmwf_ifs_enfo_2t.m03</span></code></pre></div>
+<p>Temperature at 850 and 500 hPa, at 0.1 degree:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">t.in.ecmwf</span> datasets=ifs_oper resolution=0.1 parameters=t levels=850,500</span></code></pre></div>
+<h2>SEE ALSO</h2>
+<p><em><a
+href="https://grass.osgeo.org/grass-stable/manuals/r.import.html">r.import</a>,
+<a
+href="https://grass.osgeo.org/grass-stable/manuals/t.create.html">t.create</a>,
+<a href="t.in.era5.html">t.in.era5</a>, <a
+href="https://grass.osgeo.org/grass-stable/manuals/t.rast.list.html">t.rast.list</a>,
+<a
+href="https://grass.osgeo.org/grass-stable/manuals/t.register.html">t.register</a></em></p>
+<p><a
+href="https://confluence.ecmwf.int/spaces/DAC/pages/272310539/ECMWF+open+data+real-time+forecasts+from+IFS+and+AIFS">ECMWF
+open data: real-time forecasts from IFS and AIFS</a>, <a
+href="https://confluence.ecmwf.int/spaces/DAC/pages/738041087/ECMWF+open+data+what+s+new+at+0.1%C2%B0">What's
+new at 0.1°</a></p>
+<h2>AUTHORS</h2>
+<p>Yann Chemin</p>

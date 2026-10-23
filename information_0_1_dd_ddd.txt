@@ -1,0 +1,41 @@
+I'll start by reading the ECMWF page, then check supporting sources on the 0.1° product.
+
+The main page confirms the 0.1° launch. The details that matter for your use cases are on the sub-pages, so I'm fetching those next.
+
+Verdict: the 0.1° data is useful for Nepal/Bangladesh flood forecasting, but only if the ensemble is also available at 0.1°. For East African agriculture it is a modest gain for heat and a marginal one for rainfall. The ECMWF pages don't say whether 0.1° covers the ensemble, so that is the first thing to check.
+
+What ECMWF published (live since 20 Oct 2026)
+
+0.1° comes from the same ~9 km IFS forecast as the 0.25° data, and is published 2 hours later than the 0.25° data.
+Surface and pressure-level fields are split into separate files, which helps users with low bandwidth.
+Parameters are repacked at per-parameter bits-per-value. Precipitation is 12 bits, runoff 11, 2 m temperature and soil water 9, and radiation 10.
+The main page lists the IFS streams as applying to both resolutions. The AIFS streams are published at 0.25° only, so there is no ML forecast at 0.1°.
+The extra 0.1° parameters are described as mainly upper-air fields for Forecast in a Box and limited-area model boundary conditions, not new surface or hydrology fields.
+Nepal/Bangladesh floods
+
+Positives: at 0.1° the Himalayan valleys, the Siwaliks and the Meghalaya/Sylhet escarpment are better resolved. That matters for the Ganges, Brahmaputra and Meghna headwater catchments. The precipitation, runoff, soil water and snowfall fields are all available, and the 12-bit rainfall packing is adequate.
+Latency: the 2 hour delay is irrelevant for flood warnings that work in days.
+Limits: orographic rainfall biases remain, and the extremes still need calibration against gauges. Open data keeps only a rolling archive of about 12 runs, so you must archive it yourself. There is also no 0.1° reforecast set for calibration.
+Runoff: model runoff ro is uncalibrated and should drive a hydrological model rather than be used directly.
+Bangladesh specifics: flood risk there is largely driven by upstream rainfall in other countries, so the 0.1° gain is mostly for transboundary basins. The Bay of Bengal cyclone season is active now. The cyclone tracks (BUFR) and wave fields remain available at both resolutions.
+East Africa heat and water stress
+
+Heat: 2 m temperature and dewpoint, 3-hourly maximum and minimum temperature, 10 m wind and radiation are all present. That is enough for WBGT-type proxies and for reference evapotranspiration (ET0) from Penman-Monteith. Finer terrain helps in the highlands, Rift Valley and coast, though it needs lapse-rate and station correction.
+Water: soil water in four layers is available, but it is model-based and not calibrated to crop root zones.
+Rainfall is the weak spot. East African rain is mostly convective and parametrised at ~9 km, so 0.1° adds resolution but little real skill.
+Horizon: the open data stops at 15 days. Water stress and season-scale decisions, such as the current Oct–Dec short rains, still need subseasonal and seasonal products.
+Access: the surface-only file plus byte-range reads of the GRIB index let you pull just the East Africa region. The cloud mirrors help too.
+Things to verify before committing
+
+Whether 0.1° includes the ensemble (enfo), and which steps it covers. The pages don't say.
+Whether evaporation or potential evaporation fields are included. They don't appear in the bits-per-value table.
+Real skill. The product is days old and there are no verification results yet, so this assessment rests on known IFS behaviour.
+Sources:
+
+ECMWF open data: real-time forecasts from IFS and AIFS
+What's new at 0.1°
+Bits per value
+https://confluence.ecmwf.int/spaces/DAC/pages/272310539/ECMWF+open+data+real-time+forecasts+from+IFS+and+AIFS
+https://confluence.ecmwf.int/spaces/DAC/pages/738041087/ECMWF+open+data+what+s+new+at+0.1%C2%B0
+https://confluence.ecmwf.int/spaces/DAC/pages/738041093/ECMWF+open+data+bits+per+value
+
